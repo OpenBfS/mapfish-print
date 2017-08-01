@@ -16,6 +16,7 @@ services:
 
 jdk:
 - openjdk7
+- openjdk8
 - oraclejdk8
 
 before_install:
