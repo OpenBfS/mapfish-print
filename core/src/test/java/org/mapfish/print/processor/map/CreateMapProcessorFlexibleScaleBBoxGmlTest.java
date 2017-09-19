@@ -2,8 +2,6 @@ package org.mapfish.print.processor.map;
 
 import com.google.common.base.Predicate;
 import com.google.common.io.Files;
-import jsr166y.ForkJoinPool;
-import jsr166y.ForkJoinTask;
 import org.json.JSONObject;
 import org.junit.Test;
 import org.mapfish.print.AbstractMapfishSpringTest;
@@ -24,6 +22,8 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.util.List;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.ForkJoinTask;
 
 import static org.junit.Assert.assertEquals;
 
@@ -77,7 +77,7 @@ public class CreateMapProcessorFlexibleScaleBBoxGmlTest extends AbstractMapfishS
             jsonLayer.remove("url");
             jsonLayer.accumulate("url", "http://" + host + ":23432" + "/gml/" + gmlDataName);
 
-            Values values = new Values(requestData, template, parser, getTaskDirectory(),
+            Values values = new Values("test", requestData, template, parser, getTaskDirectory(),
                     this.requestFactory, new File("."));
 
             final ForkJoinTask<Values> taskFuture = this.forkJoinPool.submit(

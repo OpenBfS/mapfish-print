@@ -12,6 +12,9 @@ DEFAULT_JVM_OPTS="-Xmx2G"
 APP_NAME="Gradle"
 APP_BASE_NAME=`basename "$0"`
 
+# set LANG to fix unit tests (fix: org.junit.ComparisonFailure: expected:<49[.]123457 °> but was:<49[,]123457 °>)
+LANG=C
+
 # Use the maximum available, or set MAX_FD != -1 to use that value.
 MAX_FD="maximum"
 
@@ -161,4 +164,4 @@ function splitJvmOpts() {
 eval splitJvmOpts $DEFAULT_JVM_OPTS $JAVA_OPTS $GRADLE_OPTS
 JVM_OPTS[${#JVM_OPTS[*]}]="-Dorg.gradle.appname=$APP_BASE_NAME"
 
-exec "$JAVACMD" "${JVM_OPTS[@]}" "-XX:MaxPermSize=512M" "-XX:+UseConcMarkSweepGC" "-XX:+CMSClassUnloadingEnabled" -classpath "$CLASSPATH" org.gradle.wrapper.GradleWrapperMain "$@"
+exec "$JAVACMD" "${JVM_OPTS[@]}" "-XX:+UseConcMarkSweepGC" "-XX:+CMSClassUnloadingEnabled" -classpath "$CLASSPATH" org.gradle.wrapper.GradleWrapperMain "$@"

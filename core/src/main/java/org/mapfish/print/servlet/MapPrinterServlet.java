@@ -22,6 +22,7 @@ import org.mapfish.print.url.data.Handler;
 import org.mapfish.print.wrapper.json.PJsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.http.HttpStatus;
@@ -44,8 +45,10 @@ import java.io.UnsupportedEncodingException;
 import java.io.Writer;
 import java.net.URI;
 import java.net.URLDecoder;
+import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -63,6 +66,7 @@ import static org.mapfish.print.servlet.ServletMapPrinterFactory.DEFAULT_CONFIGU
  */
 @Controller
 public class MapPrinterServlet extends BaseMapServlet {
+
     static {
         Handler.configureProtocolHandler();
     }
@@ -181,6 +185,14 @@ public class MapPrinterServlet extends BaseMapServlet {
      * the headers are added to the request JSON data for those processors.
      */
     public static final String JSON_REQUEST_HEADERS = "requestHeaders";
+
+    private static final List<String> REQUEST_ID_HEADERS = Arrays.asList(
+            "X-Request-ID",
+            "X-Correlation-ID",
+            "Request-ID",
+            "X-Varnish",
+            "X-Amzn-Trace-Id"
+    );
 
     @Autowired
     private JobManager jobManager;
@@ -913,6 +925,10 @@ public class MapPrinterServlet extends BaseMapServlet {
         if (specJson == null) {
             return null;
         }
+        String ref = maybeAddRequestId(
+                UUID.randomUUID().toString() + "@" + this.servletInfo.getServletId(),
+                httpServletRequest);
+        MDC.put("job_id", ref);
         LOGGER.debug("\nspec:\n{}", specJson);
 
         specJson.getInternalObj().remove(JSON_OUTPUT_FORMAT);
@@ -923,7 +939,6 @@ public class MapPrinterServlet extends BaseMapServlet {
         if (requestHeaders.length() > 0) {
             specJson.getInternalObj().getJSONObject(JSON_ATTRIBUTES).put(JSON_REQUEST_HEADERS, requestHeaders);
         }
-        String ref = UUID.randomUUID().toString() + "@" + this.servletInfo.getServletId();
 
         // check that we have authorization and configure the job so it can only be access by users with sufficient authorization
         final String templateName = specJson.getString(Constants.JSON_LAYOUT_KEY);
@@ -936,10 +951,24 @@ public class MapPrinterServlet extends BaseMapServlet {
         try {
             this.jobManager.submit(jobEntry);
         } catch (RuntimeException exc) {
-            LOGGER.error("Error when creating job", exc);
+            LOGGER.error("Error when creating job on {}: {}", appId, specJson, exc);
             ref = null;
         }
         return ref;
+    }
+
+    /**
+     * If the request contains a header that specifies a request ID, add it to the ref. The ref shows up
+     * in every logs, that way, we can trace the request ID across applications.
+     */
+    private static String maybeAddRequestId(final String ref, final HttpServletRequest request) {
+        final Optional<String> headerName =
+                REQUEST_ID_HEADERS.stream().filter(h -> request.getHeader(h) != null).findFirst();
+        return headerName.map(s ->
+                ref + "@" + request.getHeader(s).replaceAll("[^a-zA-Z0-9._-]", "_")
+        ).orElse(
+                ref
+        );
     }
 
     private <R> R loadReport(final String referenceId, final HttpServletResponse httpServletResponse,

@@ -1,8 +1,5 @@
 package org.mapfish.print.output;
 
-import jsr166y.ForkJoinPool;
-import jsr166y.ForkJoinTask;
-
 import org.apache.commons.io.IOUtils;
 import org.mapfish.print.Constants;
 import org.mapfish.print.config.Configuration;
@@ -20,6 +17,8 @@ import java.io.OutputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.ForkJoinTask;
 
 
 /**
@@ -81,8 +80,8 @@ public class MapExportOutputFormat implements OutputFormat {
     }
 
     @Override
-    public final void print(final PJsonObject spec, final Configuration config, final File configDir, final File taskDirectory,
-            final OutputStream outputStream) throws Exception {
+    public final void print(final String jobId, final PJsonObject spec, final Configuration config,
+                            final File configDir, final File taskDirectory, final OutputStream outputStream) throws Exception {
         final String templateName = spec.getString(Constants.JSON_LAYOUT_KEY);
 
         final Template template = config.getTemplate(templateName);
@@ -92,7 +91,7 @@ public class MapExportOutputFormat implements OutputFormat {
             ".\nAvailable templates: " + possibleTemplates);
         }
 
-        final Values values = new Values(spec, template, this.parser, taskDirectory, this.httpRequestFactory, null,
+        final Values values = new Values(jobId, spec, template, this.parser, taskDirectory, this.httpRequestFactory, null,
                 this.fileSuffix);
 
         final ForkJoinTask<Values> taskFuture = this.forkJoinPool.submit(template.getProcessorGraph().createTask(values));

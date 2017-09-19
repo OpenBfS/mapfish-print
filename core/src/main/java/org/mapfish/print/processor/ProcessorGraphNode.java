@@ -7,17 +7,18 @@ import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
 import com.google.common.collect.Sets;
 import com.vividsolutions.jts.util.Assert;
-import jsr166y.RecursiveTask;
 import org.mapfish.print.ExceptionUtils;
 import org.mapfish.print.output.Values;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 import java.util.ArrayList;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.RecursiveTask;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nonnull;
 
@@ -184,6 +185,7 @@ public final class ProcessorGraphNode<In, Out> {
 
         @Override
         protected Values compute() {
+            MDC.put("job_id", this.execContext.getJobId());
             final Values values = this.execContext.getValues();
 
             final Processor<In, Out> process = this.node.processor;

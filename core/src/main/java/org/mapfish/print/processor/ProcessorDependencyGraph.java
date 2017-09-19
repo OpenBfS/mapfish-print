@@ -6,16 +6,16 @@ import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
 
-import jsr166y.RecursiveTask;
-
 import org.mapfish.print.output.Values;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 import java.util.ArrayList;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.RecursiveTask;
 
 import javax.annotation.Nonnull;
 
@@ -161,7 +161,7 @@ public final class ProcessorDependencyGraph {
         @Override
         protected Values compute() {
             final ProcessorDependencyGraph graph = ProcessorDependencyGraph.this;
-
+            MDC.put("job_id", this.execContext.getJobId());
             LOGGER.debug("Starting to execute processor graph: \n" + graph);
             try {
                 List<ProcessorGraphNode.ProcessorNodeForkJoinTask> tasks = Lists.newArrayListWithExpectedSize(graph.roots.size());

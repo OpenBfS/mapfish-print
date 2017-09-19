@@ -14,7 +14,6 @@ import com.vividsolutions.jts.awt.ShapeWriter;
 import com.vividsolutions.jts.geom.Coordinate;
 import com.vividsolutions.jts.geom.Polygon;
 
-import jsr166y.ForkJoinPool;
 import net.sf.jasperreports.engine.JRException;
 
 import org.apache.batik.svggen.DefaultStyleHandler;
@@ -82,6 +81,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ForkJoinPool;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -174,7 +174,7 @@ public final class CreateMapProcessor extends AbstractProcessor<CreateMapProcess
         final List<URI> graphics = createLayerGraphics(
                 param.tempTaskDirectory,
                 param.clientHttpRequestFactoryProvider.get(),
-                mapValues, context, mapContext);
+                mapValues, context, mapContext, param.jobId);
         checkCancelState(context);
 
         final URI mapSubReport;
@@ -307,8 +307,10 @@ public final class CreateMapProcessor extends AbstractProcessor<CreateMapProcess
                                           final MfClientHttpRequestFactory clientHttpRequestFactory,
                                           final MapAttributeValues mapValues,
                                           final ExecutionContext context,
-                                          final MapfishMapContext mapContext)
+                                          final MapfishMapContext mapContext,
+                                          final String jobId)
             throws Exception {
+        LOGGER.warn("XXXXXX jobId={}", jobId);
         // reverse layer list to draw from bottom to top.  normally position 0 is top-most layer.
         final List<MapLayer> layers = Lists.reverse(Lists.newArrayList(mapValues.getLayers()));
 
@@ -324,7 +326,7 @@ public final class CreateMapProcessor extends AbstractProcessor<CreateMapProcess
             layer.prepareRender(mapContext);
             final MapfishMapContext transformer = getTransformer(mapContext,
                     layer.getImageBufferScaling());
-            layer.cacheResources(cache, clientHttpRequestFactory, transformer);
+            layer.cacheResources(cache, clientHttpRequestFactory, transformer, jobId);
         }
 
         //now we download and cache all images at once
@@ -342,7 +344,7 @@ public final class CreateMapProcessor extends AbstractProcessor<CreateMapProcess
                 try {
                     Graphics2D clippedGraphics2D = createClippedGraphics(
                             mapContext, areaOfInterest, graphics2D);
-                    layer.render(clippedGraphics2D, clientHttpRequestFactory, mapContext);
+                    layer.render(clippedGraphics2D, clientHttpRequestFactory, mapContext, jobId);
 
                     path = new File(printDirectory, mapKey + "_layer_" + i + ".svg");
                     saveSvgFile(graphics2D, path);
@@ -374,7 +376,7 @@ public final class CreateMapProcessor extends AbstractProcessor<CreateMapProcess
 
                 try {
                     MapfishMapContext transformer = getTransformer(mapContext, layer.getImageBufferScaling());
-                    layer.render(graphics2D, clientHttpRequestFactory, transformer);
+                    layer.render(graphics2D, clientHttpRequestFactory, transformer, jobId);
 
                     // Merge consecutive layers of same render type and same buffer scaling (native
                     // resolution)
@@ -387,7 +389,7 @@ public final class CreateMapProcessor extends AbstractProcessor<CreateMapProcess
                         checkCancelState(context);
                         layer.prepareRender(mapContext);
                         warnIfDifferentRenderType(renderType, layer);
-                        layer.render(graphics2D, clientHttpRequestFactory, transformer);
+                        layer.render(graphics2D, clientHttpRequestFactory, transformer, jobId);
                     }
 
                     path = new File(
@@ -711,6 +713,11 @@ public final class CreateMapProcessor extends AbstractProcessor<CreateMapProcess
          */
         @HasDefaultValue
         public String outputFormat = null;
+
+        /**
+         * The job id.
+         */
+        public String jobId;
     }
 
     /**

@@ -1,7 +1,5 @@
 package org.mapfish.print.processor.map;
 
-import jsr166y.ForkJoinPool;
-import jsr166y.ForkJoinTask;
 import org.json.JSONException;
 import org.junit.Test;
 import org.mapfish.print.AbstractMapfishSpringTest;
@@ -21,6 +19,8 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.ForkJoinTask;
 
 import javax.imageio.ImageIO;
 
@@ -51,7 +51,7 @@ public class CreateMapProcessorLabelGeoJsonTest extends AbstractMapfishSpringTes
             InterruptedException {
         final Configuration config = configurationFactory.getConfig(getFile(BASE_DIR + "config.yaml"));
         final Template template = config.getTemplate("main");
-        Values values = new Values(requestData, template, parser, getTaskDirectory(), this.httpRequestFactory, new File("."));
+        Values values = new Values("test", requestData, template, parser, getTaskDirectory(), this.httpRequestFactory, new File("."));
 
         final ForkJoinTask<Values> taskFuture = this.forkJoinPool.submit(
                 template.getProcessorGraph().createTask(values));

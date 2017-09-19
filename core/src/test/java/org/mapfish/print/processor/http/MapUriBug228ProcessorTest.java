@@ -1,6 +1,5 @@
 package org.mapfish.print.processor.http;
 
-import jsr166y.ForkJoinPool;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -20,6 +19,7 @@ import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ContextConfiguration;
 
 import java.util.List;
+import java.util.concurrent.ForkJoinPool;
 
 import static org.junit.Assert.assertEquals;
 
@@ -48,7 +48,7 @@ public class MapUriBug228ProcessorTest extends AbstractMapfishSpringTest {
         final Configuration config = configurationFactory.getConfig(getFile(baseDir() + "/map-uri-228-bug-fix-config.yaml"));
         final Template template = config.getTemplate("main");
 
-        ConfigFileResolvingHttpRequestFactory requestFactory = new ConfigFileResolvingHttpRequestFactory(this.httpClientFactory, config);
+        ConfigFileResolvingHttpRequestFactory requestFactory = new ConfigFileResolvingHttpRequestFactory(this.httpClientFactory, config, "test");
         ProcessorDependencyGraph graph = template.getProcessorGraph();
         List<ProcessorGraphNode> roots = graph.getRoots();
 

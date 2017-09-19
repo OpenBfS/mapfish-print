@@ -1,7 +1,5 @@
 package org.mapfish.print.processor;
 
-import jsr166y.ForkJoinPool;
-
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -21,6 +19,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import java.io.File;
 import java.util.List;
+import java.util.concurrent.ForkJoinPool;
 
 import static org.junit.Assert.assertEquals;
 
@@ -45,14 +44,14 @@ public class SetStyleProcessorTest extends AbstractMapfishSpringTest {
         final Configuration config = this.configurationFactory.getConfig(getFile(BASE_DIR + "basic/config.yaml"));
         final Template template = config.getTemplate("main");
         PJsonObject requestData = parseJSONObjectFromFile(SetStyleProcessorTest.class, BASE_DIR + "basic/request.json");
-        Values values = new Values(requestData, template, parser, this.folder.getRoot(), this.httpClientFactory, new File("."));
+        Values values = new Values("test", requestData, template, parser, this.folder.getRoot(), this.httpClientFactory, new File("."));
         forkJoinPool.invoke(template.getProcessorGraph().createTask(values));
 
         final MapAttribute.MapAttributeValues map = values.getObject("map", MapAttribute.MapAttributeValues.class);
         final AbstractFeatureSourceLayer layer = (AbstractFeatureSourceLayer) map.getLayers().get(0);
         final MapfishMapContext mapContext = AbstractMapfishSpringTest.createTestMapContext();
         assertEquals("Default Line",
-                layer.getLayers(httpClientFactory, mapContext).get(0).getStyle().getDescription().getTitle().toString());
+                layer.getLayers(httpClientFactory, mapContext, "test").get(0).getStyle().getDescription().getTitle().toString());
     }
 
     @Test

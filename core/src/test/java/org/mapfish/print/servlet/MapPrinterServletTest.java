@@ -252,7 +252,7 @@ public class MapPrinterServletTest extends AbstractMapfishSpringTest {
             }
         });
 
-        doCreateAndPollAndGetReport(new Function<MockHttpServletRequest, MockHttpServletResponse>() {
+        String ref = doCreateAndPollAndGetReport(new Function<MockHttpServletRequest, MockHttpServletResponse>() {
             @Nullable
             @Override
             public MockHttpServletResponse apply(@Nullable MockHttpServletRequest servletCreateRequest) {
@@ -275,8 +275,9 @@ public class MapPrinterServletTest extends AbstractMapfishSpringTest {
             }
         }, false);
 
-        assertEquals(1, request.getHeaders().size());
+        assertEquals(2, request.getHeaders().size());
         assertArrayEquals(new Object[]{"CookieValue", "CookieValue2"}, request.getHeaders().get("Cookies").toArray());
+        assertArrayEquals(new Object[]{ref}, request.getHeaders().get("X-Request-ID").toArray());
     }
 
     @Test
@@ -293,6 +294,7 @@ public class MapPrinterServletTest extends AbstractMapfishSpringTest {
         final MockHttpServletRequest servletCreateRequest = new MockHttpServletRequest("POST", "http://localhost:9834/context/print/report.png");
         servletCreateRequest.setContextPath("/print");
         addHeaders(servletCreateRequest);
+        servletCreateRequest.addHeader("X-Request-ID", "totoIs/TheBest");
         final MockHttpServletResponse servletCreateResponse = createReport.apply(servletCreateRequest);
 
         final PJsonObject createResponseJson = parseJSONObjectFromString(servletCreateResponse.getContentAsString());
@@ -305,9 +307,11 @@ public class MapPrinterServletTest extends AbstractMapfishSpringTest {
         assertEquals("/print/status/" + ref + ".json", statusURL);
         assertEquals("/print/report/" + ref, downloadURL);
 
-        final String atHostRefSegment = "@" + this.servletInfo.getServletId();
-        assertTrue(ref.endsWith(atHostRefSegment));
-        assertTrue(ref.indexOf(atHostRefSegment) > 0);
+        // Check the X-Request-ID has been included in the ref
+        final String[] splittedRef = ref.split("@");
+        assertEquals(3, splittedRef.length);
+        assertEquals("totoIs_TheBest", splittedRef[2]);
+        assertEquals(this.servletInfo.getServletId(), splittedRef[1]);
 
         boolean reportReady = false;
         int lastTimeElapsed = 0;

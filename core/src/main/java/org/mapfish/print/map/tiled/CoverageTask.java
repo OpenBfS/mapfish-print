@@ -3,7 +3,6 @@ package org.mapfish.print.map.tiled;
 
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
-import jsr166y.RecursiveTask;
 import org.geotools.coverage.CoverageFactoryFinder;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.GridCoverageFactory;
@@ -14,6 +13,7 @@ import org.mapfish.print.map.style.json.ColorParser;
 import org.mapfish.print.map.tiled.TilePreparationInfo.SingleTilePreparationInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.client.ClientHttpRequest;
 import org.springframework.http.client.ClientHttpResponse;
@@ -23,6 +23,7 @@ import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.concurrent.Callable;
+import java.util.concurrent.RecursiveTask;
 
 import javax.annotation.Nonnull;
 import javax.imageio.ImageIO;
@@ -39,6 +40,7 @@ public final class CoverageTask implements Callable<GridCoverage2D> {
     private final TilePreparationInfo tilePreparationInfo;
     private final boolean failOnError;
     private final MetricRegistry registry;
+    private final String jobId;
     private final BufferedImage errorImage;
 
 
@@ -47,6 +49,7 @@ public final class CoverageTask implements Callable<GridCoverage2D> {
      * @param tilePreparationInfo tileLoader Results.
      * @param failOnError fail on tile download error.
      * @param registry the metrics registry.
+     * @param jobId the job ID.
      * @param tileCacheInfo the object used to create the tile requests.
      * @param configuration the configuration.
      */
@@ -54,9 +57,11 @@ public final class CoverageTask implements Callable<GridCoverage2D> {
             @Nonnull final TilePreparationInfo tilePreparationInfo,
             final boolean failOnError,
             @Nonnull final MetricRegistry registry,
+            @Nonnull final String jobId,
             @Nonnull final TileCacheInformation tileCacheInfo,
             @Nonnull final Configuration configuration) {
         this.tilePreparationInfo = tilePreparationInfo;
+        this.jobId = jobId;
         this.tiledLayer = tileCacheInfo;
         this.failOnError = failOnError;
         this.registry = registry;
@@ -87,7 +92,7 @@ public final class CoverageTask implements Callable<GridCoverage2D> {
                 if (tileInfo.getTileRequest() != null) {
                     task = new SingleTileLoaderTask(
                                 tileInfo.getTileRequest(), this.errorImage, tileInfo.getTileIndexX(),
-                                tileInfo.getTileIndexY(), this.failOnError, this.registry);
+                                tileInfo.getTileIndexY(), this.failOnError, this.registry, this.jobId);
                 } else {
                     task = new PlaceHolderImageTask(this.tiledLayer.getMissingTileImage(),
                             tileInfo.getTileIndexX(), tileInfo.getTileIndexY());
@@ -161,6 +166,7 @@ public final class CoverageTask implements Callable<GridCoverage2D> {
         private final ClientHttpRequest tileRequest;
         private final boolean failOnError;
         private final MetricRegistry registry;
+        private final String jobId;
         private final BufferedImage errorImage;
 
         /**
@@ -172,19 +178,22 @@ public final class CoverageTask implements Callable<GridCoverage2D> {
          * @param tileIndexY tile index y
          * @param failOnError fail on error
          * @param registry registry
+         * @param jobId the job ID
          */
         public SingleTileLoaderTask(final ClientHttpRequest tileRequest, final BufferedImage errorImage,
                                     final int tileIndexX, final int tileIndexY, final boolean failOnError,
-                                    final MetricRegistry registry) {
+                                    final MetricRegistry registry, final String jobId) {
             super(tileIndexX, tileIndexY);
             this.tileRequest = tileRequest;
             this.errorImage = errorImage;
             this.failOnError = failOnError;
             this.registry = registry;
+            this.jobId = jobId;
         }
 
         @Override
         protected Tile compute() {
+            MDC.put("job_id", this.jobId);
             ClientHttpResponse response = null;
             final String baseMetricName = TilePreparationTask.class.getName() + ".read." +
                     this.tileRequest.getURI().getHost();
@@ -192,10 +201,11 @@ public final class CoverageTask implements Callable<GridCoverage2D> {
                 LOGGER.debug("\n\t" + this.tileRequest.getMethod() + " -- " + this.tileRequest.getURI());
                 final Timer.Context timerDownload = this.registry.timer(baseMetricName).time();
                 response = this.tileRequest.execute();
-                final HttpStatus statusCode = response.getStatusCode();
+                final HttpStatus statusCode =
+                        response != null ? response.getStatusCode() : HttpStatus.INTERNAL_SERVER_ERROR;
                 if (statusCode == HttpStatus.NO_CONTENT || statusCode == HttpStatus.NOT_FOUND) {
                     if (statusCode == HttpStatus.NOT_FOUND) {
-                        LOGGER.info("The request {} returns a not fond status code, we consider it as an " +
+                        LOGGER.info("The request {} returns a not found status code, we consider it as an " +
                                 "empty tile.", this.tileRequest.getURI());
                     }
                     // Empty response, nothing special to do

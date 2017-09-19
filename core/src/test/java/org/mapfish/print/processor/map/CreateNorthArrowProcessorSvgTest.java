@@ -3,8 +3,7 @@ package org.mapfish.print.processor.map;
 import com.google.common.base.Predicate;
 import com.google.common.io.Files;
 import java.io.File;
-
-import jsr166y.ForkJoinPool;
+import java.util.concurrent.ForkJoinPool;
 
 import org.junit.Test;
 import org.mapfish.print.AbstractMapfishSpringTest;
@@ -63,7 +62,7 @@ public class CreateNorthArrowProcessorSvgTest extends AbstractMapfishSpringTest 
         final Configuration config = configurationFactory.getConfig(getFile(BASE_DIR + "config.yaml"));
         final Template template = config.getTemplate("main");
         PJsonObject requestData = loadJsonRequestData();
-        Values values = new Values(requestData, template, this.parser, getTaskDirectory(),
+        Values values = new Values("test", requestData, template, this.parser, getTaskDirectory(),
                 this.requestFactory, new File("."));
         this.forkJoinPool.invoke(template.getProcessorGraph().createTask(values));
 
